@@ -1,47 +1,51 @@
-import React, { useState, useEffect } from 'react';
-import logo from './logo.svg';
-import './App.css';
+import React, { useEffect, useState } from "react";
+import { Routes, Route } from "react-router-dom";
+import "./App.css";
+
+import Navbar from "./components/Navbar";
+import LoginModal from "./components/LoginModal";
+import SettingsModal from "./components/SettingsModal";
+import Dashboard from "./pages/Dashboard";
+import Profile from "./pages/Profile";
+import ApiExplorer from "./pages/ApiExplorer";
 
 // PUBLIC_INTERFACE
 function App() {
-  const [theme, setTheme] = useState('light');
+  /** Main application: navigation, theming, routes, and modal management. */
+  const [theme, setTheme] = useState(() => localStorage.getItem("theme") || "light");
+  const [loginOpen, setLoginOpen] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
 
-  // Effect to apply theme to document element
   useEffect(() => {
-    document.documentElement.setAttribute('data-theme', theme);
+    document.documentElement.setAttribute("data-theme", theme);
+    localStorage.setItem("theme", theme);
   }, [theme]);
 
   // PUBLIC_INTERFACE
   const toggleTheme = () => {
-    setTheme(prevTheme => prevTheme === 'light' ? 'dark' : 'light');
+    /** Toggle between light and dark theme. */
+    setTheme((prev) => (prev === "light" ? "dark" : "light"));
   };
 
   return (
-    <div className="App">
-      <header className="App-header">
-        <button 
-          className="theme-toggle" 
-          onClick={toggleTheme}
-          aria-label={`Switch to ${theme === 'light' ? 'dark' : 'light'} mode`}
-        >
-          {theme === 'light' ? '🌙 Dark' : '☀️ Light'}
-        </button>
-        <img src={logo} className="App-logo" alt="logo" />
-        <p>
-          Edit <code>src/App.js</code> and save to reload.
-        </p>
-        <p>
-          Current theme: <strong>{theme}</strong>
-        </p>
-        <a
-          className="App-link"
-          href="https://reactjs.org"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          Learn React
-        </a>
-      </header>
+    <div className="app-root">
+      <Navbar onOpenLogin={() => setLoginOpen(true)} onOpenSettings={() => setSettingsOpen(true)} />
+      <main className="main">
+        <Routes>
+          <Route path="/" element={<Dashboard onRequestLogin={() => setLoginOpen(true)} />} />
+          <Route path="/profile" element={<Profile onRequestLogin={() => setLoginOpen(true)} />} />
+          <Route path="/api" element={<ApiExplorer onRequestLogin={() => setLoginOpen(true)} />} />
+        </Routes>
+      </main>
+
+      <LoginModal isOpen={loginOpen} onClose={() => setLoginOpen(false)} />
+      <SettingsModal
+        isOpen={settingsOpen}
+        onClose={() => setSettingsOpen(false)}
+        theme={theme}
+        onChangeTheme={setTheme}
+        toggleTheme={toggleTheme}
+      />
     </div>
   );
 }
