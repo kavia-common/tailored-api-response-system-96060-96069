@@ -2,9 +2,37 @@ import axios from "axios";
 
 /**
  * API service configured with backend base URL and JWT support.
- * Reads REACT_APP_BACKEND_URL from environment. If not set, will default to same-origin.
+ * Reads REACT_APP_BACKEND_URL from environment. If not set, will default to:
+ *  - http(s)://<host>:3001 in development (when running on port 3000)
+ *  - same-origin in other cases (empty string baseURL)
+ *
+ * This improves reliability in local dev without hard-coding addresses.
  */
-const BASE_URL = process.env.REACT_APP_BACKEND_URL || "";
+
+// Resolve base URL from env or infer sensible defaults for dev
+const ENV_BASE = (process.env.REACT_APP_BACKEND_URL || "").trim();
+
+/**
+ * Determine effective backend base URL.
+ * - If REACT_APP_BACKEND_URL is provided, use it.
+ * - Else, if running on dev port 3000, try same host on port 3001.
+ * - Otherwise, fall back to same-origin (relative paths).
+ */
+// PUBLIC_INTERFACE
+export function getBaseUrl() {
+  /** Returns the computed backend base URL used by the API client. */
+  if (ENV_BASE) return ENV_BASE;
+  if (typeof window !== "undefined" && window.location) {
+    if (window.location.port === "3000") {
+      const proto = window.location.protocol;
+      const host = window.location.hostname;
+      return `${proto}//${host}:3001`;
+    }
+  }
+  return ""; // same-origin
+}
+
+const BASE_URL = getBaseUrl();
 
 // Axios instance for consistent headers and base URL
 const api = axios.create({
@@ -12,6 +40,8 @@ const api = axios.create({
   headers: {
     "Content-Type": "application/json",
   },
+  // Reasonable timeout to surface connectivity issues clearly
+  timeout: 15000,
 });
 
 // Current token value stored in module scope and mirrored to localStorage by AuthContext
@@ -24,6 +54,44 @@ api.interceptors.request.use((config) => {
   }
   return config;
 });
+
+// Enhance error messages for network/CORS/misconfiguration issues
+api.interceptors.response.use(
+  (res) => res,
+  (error) => {
+    const isNetworkIssue =
+      (!error?.response && (error?.code === "ERR_NETWORK" || (error?.message || "").toLowerCase().includes("network")))
+      || error?.message === "Network Error";
+
+    if (isNetworkIssue) {
+      try {
+        const frontendOrigin = typeof window !== "undefined" && window.location ? window.location.origin : "frontend";
+        const backendBase = BASE_URL || frontendOrigin;
+        const friendly = [
+          "NetworkError: Failed to reach the backend.",
+          `- Attempted base URL: ${backendBase}`,
+          "- Possible causes:",
+          "  • REACT_APP_BACKEND_URL not set or incorrect",
+          "  • Backend is not running or not accessible",
+          `  • CORS not allowing origin ${frontendOrigin}`,
+          "  • Mixed-content or TLS/hostname mismatch",
+          "",
+          "Resolution:",
+          "  • Set REACT_APP_BACKEND_URL in your .env to your backend URL (e.g., http://localhost:3001)",
+          "  • Ensure backend CORS allows the frontend origin",
+          "  • Verify backend is reachable via the browser",
+        ].join("\n");
+        const wrapped = new Error(friendly);
+        wrapped.original = error;
+        return Promise.reject(wrapped);
+      } catch {
+        // If any error occurs during wrapping, reject original error
+        return Promise.reject(error);
+      }
+    }
+    return Promise.reject(error);
+  }
+);
 
 // PUBLIC_INTERFACE
 export function setToken(token) {
@@ -102,6 +170,7 @@ export async function health() {
 }
 
 export default {
+  getBaseUrl,
   setToken,
   login,
   signup,
