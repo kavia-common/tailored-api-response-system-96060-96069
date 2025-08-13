@@ -10,7 +10,7 @@ export default function Navbar({ onOpenLogin, onOpenSettings }) {
     <nav className="navbar">
       <div className="nav-left">
         <Link to="/" className="brand">
-          Tailored<span className="brand-accent">API</span>
+          TATA ELXSI <span className="brand-accent">MOCK API</span>
         </Link>
         <NavLink to="/" className={({ isActive }) => "nav-item" + (isActive ? " active" : "")} end>Dashboard</NavLink>
         <NavLink to="/profile" className={({ isActive }) => "nav-item" + (isActive ? " active" : "")}>Profile</NavLink>

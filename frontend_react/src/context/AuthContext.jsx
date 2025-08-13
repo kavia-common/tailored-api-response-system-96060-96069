@@ -1,5 +1,6 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import * as api from "../services/api";
+import { extractErrorMessage, parseValidationErrors } from "../utils/error";
 
 /**
  * AuthContext provides authentication state and actions (login, signup, logout)
@@ -25,6 +26,8 @@ export function AuthProvider({ children }) {
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  // Store parsed field-level validation errors (e.g., from FastAPI 422)
+  const [validationErrors, setValidationErrors] = useState({});
 
   // Keep API token in sync
   useEffect(() => {
@@ -53,6 +56,8 @@ export function AuthProvider({ children }) {
   }, []);
 
   const persistToken = useCallback((newToken) => {
+    // Immediately inject token into API client before any protected calls
+    api.setToken(newToken);
     setToken(newToken);
     if (newToken) {
       localStorage.setItem(TOKEN_KEY, newToken);
@@ -76,6 +81,7 @@ export function AuthProvider({ children }) {
      * Login user and populate token and profile.
      */
     setError(null);
+    setValidationErrors({});
     setLoading(true);
     try {
       const tokenRes = await api.login({ email, password });
@@ -84,7 +90,8 @@ export function AuthProvider({ children }) {
       persistUser(dash?.user || null);
       return { ok: true };
     } catch (e) {
-      setError(e?.response?.data || e?.message || "Login failed");
+      // Avoid leaking complex objects to UI; keep a friendly string
+      setError(extractErrorMessage(e, "Login failed"));
       persistToken(null);
       persistUser(null);
       return { ok: false, error: e };
@@ -97,8 +104,10 @@ export function AuthProvider({ children }) {
     /**
      * PUBLIC_INTERFACE
      * Signup user (optionally with package tier) and populate token and profile.
+     * Also parses FastAPI 422 errors to surface field-specific validation feedback.
      */
     setError(null);
+    setValidationErrors({});
     setLoading(true);
     try {
       const payload = { email, password };
@@ -109,7 +118,15 @@ export function AuthProvider({ children }) {
       persistUser(dash?.user || null);
       return { ok: true };
     } catch (e) {
-      setError(e?.response?.data || e?.message || "Signup failed");
+      // Parse field-specific validation errors (e.g., 422 from FastAPI)
+      const parsed = parseValidationErrors(e);
+      // Expose field errors to UI
+      setValidationErrors(parsed.fieldErrors || {});
+      // Keep a human-friendly top-level message for generic displays
+      const friendly = parsed.nonFieldErrors?.length
+        ? parsed.nonFieldErrors.join("; ")
+        : extractErrorMessage(e, "Signup failed");
+      setError(friendly);
       persistToken(null);
       persistUser(null);
       return { ok: false, error: e };
@@ -125,6 +142,8 @@ export function AuthProvider({ children }) {
      */
     persistToken(null);
     persistUser(null);
+    setError(null);
+    setValidationErrors({});
   }, [persistToken, persistUser]);
 
   const refreshProfile = useCallback(async () => {
@@ -156,6 +175,7 @@ export function AuthProvider({ children }) {
       return { ok: false, error: "Unauthorized" };
     }
     setError(null);
+    setValidationErrors({});
     setLoading(true);
     try {
       const updated = await api.updatePlan(packageTier);
@@ -171,18 +191,27 @@ export function AuthProvider({ children }) {
     }
   }, [token, user, persistUser]);
 
+  // PUBLIC_INTERFACE
+  const clearAuthError = useCallback(() => {
+    /** Clear any stored auth error and validation errors (e.g., when switching modes or closing modals). */
+    setError(null);
+    setValidationErrors({});
+  }, []);
+
   const value = useMemo(() => ({
     token,
     user,
     loading,
     error,
+    validationErrors,
     isAuthenticated: !!token,
     login: doLogin,
     signup: doSignup,
     logout: doLogout,
     refreshProfile,
     updatePlan: doUpdatePlan,
-  }), [token, user, loading, error, doLogin, doSignup, doLogout, refreshProfile, doUpdatePlan]);
+    clearAuthError,
+  }), [token, user, loading, error, validationErrors, doLogin, doSignup, doLogout, refreshProfile, doUpdatePlan, clearAuthError]);
 
   return (
     <AuthContext.Provider value={value}>

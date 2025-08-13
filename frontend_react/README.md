@@ -1,4 +1,4 @@
-# Lightweight React Template for KAVIA
+# tataelxsi mock api - React frontend
 
 This project provides a minimal React template with a clean, modern UI and minimal dependencies.
 

@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { useAuth } from "../context/AuthContext";
-import { getTailoredContent } from "../services/api";
+import { getTailoredContent, getBaseUrl } from "../services/api";
 
 // PUBLIC_INTERFACE
 export default function ApiExplorer({ onRequestLogin }) {
@@ -46,7 +46,7 @@ export default function ApiExplorer({ onRequestLogin }) {
               <div className="code-section">
                 <p className="muted">Example curl</p>
                 <pre className="code-block">
-                  {`curl -H "Authorization: Bearer <your_token>" ${process.env.REACT_APP_BACKEND_URL || ""}/api/content`}
+                  {`curl -H "Authorization: Bearer <your_token>" ${getBaseUrl()}/api/content`}
                 </pre>
               </div>
               {err && <div className="form-error">{String(err?.detail || err?.msg || err)}</div>}
