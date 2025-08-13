@@ -47,25 +47,62 @@ const api = axios.create({
 // Current token value stored in module scope and mirrored to localStorage by AuthContext
 let currentToken = null;
 
-// Attach Authorization header if token present
+// Attach Authorization header if token present and log it in development
 api.interceptors.request.use((config) => {
   if (currentToken) {
     config.headers.Authorization = `Bearer ${currentToken}`;
   }
+
+  // Log outgoing Authorization header (development only)
+  if (process.env.NODE_ENV !== "production") {
+    try {
+      const fullUrl = (config.baseURL || "") + (config.url || "");
+      // eslint-disable-next-line no-console
+      console.debug("[api] Request", {
+        method: (config.method || "get").toUpperCase(),
+        url: fullUrl,
+        Authorization: config.headers?.Authorization || "(none)",
+      });
+    } catch {
+      // ignore logging errors
+    }
+  }
   return config;
 });
 
-// Enhance error messages for network/CORS/misconfiguration issues
+// Enhance error messages for 401 and network/CORS/misconfiguration issues
 api.interceptors.response.use(
   (res) => res,
   (error) => {
+    // Friendly Unauthorized messaging
+    if (error?.response?.status === 401) {
+      if (process.env.NODE_ENV !== "production") {
+        // eslint-disable-next-line no-console
+        console.debug("[api] 401 Unauthorized response", {
+          url: (error?.config?.baseURL || "") + (error?.config?.url || ""),
+          Authorization: error?.config?.headers?.Authorization || "(none)",
+        });
+      }
+      const friendly401 = new Error(
+        "Unauthorized (401): Your session may be invalid or expired. Please log in again."
+      );
+      friendly401.original = error;
+      friendly401.response = error.response;
+      return Promise.reject(friendly401);
+    }
+
     const isNetworkIssue =
-      (!error?.response && (error?.code === "ERR_NETWORK" || (error?.message || "").toLowerCase().includes("network")))
-      || error?.message === "Network Error";
+      (!error?.response &&
+        (error?.code === "ERR_NETWORK" ||
+          (error?.message || "").toLowerCase().includes("network"))) ||
+      error?.message === "Network Error";
 
     if (isNetworkIssue) {
       try {
-        const frontendOrigin = typeof window !== "undefined" && window.location ? window.location.origin : "frontend";
+        const frontendOrigin =
+          typeof window !== "undefined" && window.location
+            ? window.location.origin
+            : "frontend";
         const backendBase = BASE_URL || frontendOrigin;
         const friendly = [
           "NetworkError: Failed to reach the backend.",
@@ -83,6 +120,7 @@ api.interceptors.response.use(
         ].join("\n");
         const wrapped = new Error(friendly);
         wrapped.original = error;
+        wrapped.response = error.response;
         return Promise.reject(wrapped);
       } catch {
         // If any error occurs during wrapping, reject original error

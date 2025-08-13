@@ -56,6 +56,8 @@ export function AuthProvider({ children }) {
   }, []);
 
   const persistToken = useCallback((newToken) => {
+    // Immediately inject token into API client before any protected calls
+    api.setToken(newToken);
     setToken(newToken);
     if (newToken) {
       localStorage.setItem(TOKEN_KEY, newToken);
