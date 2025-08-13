@@ -1,6 +1,7 @@
 import React, { useState, useMemo } from "react";
 import Modal from "./Modal";
 import { useAuth } from "../context/AuthContext";
+import { extractErrorMessage } from "../utils/error";
 
 // PUBLIC_INTERFACE
 export default function LoginModal({ isOpen, onClose }) {
@@ -107,7 +108,7 @@ export default function LoginModal({ isOpen, onClose }) {
             </select>
           </div>
         )}
-        {(localError || error) && <div className="form-error">{String(localError || (error?.detail || error?.msg || error))}</div>}
+        {(localError || error) && <div className="form-error">{extractErrorMessage(localError || error)}</div>}
         <div className="form-hint">
           {mode === "login" ? (
             <>

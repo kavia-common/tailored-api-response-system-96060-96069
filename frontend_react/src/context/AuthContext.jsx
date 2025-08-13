@@ -1,5 +1,6 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import * as api from "../services/api";
+import { extractErrorMessage } from "../utils/error";
 
 /**
  * AuthContext provides authentication state and actions (login, signup, logout)
@@ -109,7 +110,8 @@ export function AuthProvider({ children }) {
       persistUser(dash?.user || null);
       return { ok: true };
     } catch (e) {
-      setError(e?.response?.data || e?.message || "Signup failed");
+      // Normalize error to a readable message so UI does not display "[object Object]"
+      setError(extractErrorMessage(e, "Signup failed"));
       persistToken(null);
       persistUser(null);
       return { ok: false, error: e };
