@@ -34,7 +34,7 @@ export default function Dashboard({ onRequestLogin }) {
     return (
       <div className="container">
         <div className="hero">
-          <h1>Welcome to Tailored API</h1>
+          <h1>Welcome to tataelxsi mock api</h1>
           <p className="muted">Sign in to see content tailored to your subscription package.</p>
           <div className="actions">
             <button className="btn btn-large" onClick={onRequestLogin}>Login / Sign up</button>
