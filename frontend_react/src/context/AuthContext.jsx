@@ -127,6 +127,50 @@ export function AuthProvider({ children }) {
     persistUser(null);
   }, [persistToken, persistUser]);
 
+  const refreshProfile = useCallback(async () => {
+    /**
+     * PUBLIC_INTERFACE
+     * Refresh the user profile from the dashboard endpoint.
+     */
+    if (!token) return null;
+    try {
+      setLoading(true);
+      const dash = await api.getDashboard();
+      persistUser(dash?.user || null);
+      return dash?.user || null;
+    } catch (e) {
+      setError(e?.response?.data || e?.message || "Failed to refresh profile");
+      return null;
+    } finally {
+      setLoading(false);
+    }
+  }, [token, persistUser]);
+
+  const doUpdatePlan = useCallback(async (packageTier) => {
+    /**
+     * PUBLIC_INTERFACE
+     * Update user's plan/package and sync local profile state.
+     */
+    if (!token) {
+      setError("Unauthorized");
+      return { ok: false, error: "Unauthorized" };
+    }
+    setError(null);
+    setLoading(true);
+    try {
+      const updated = await api.updatePlan(packageTier);
+      // Immediately mirror into user object for responsive UI
+      const nextUser = user ? { ...user, package_tier: updated?.package_tier } : user;
+      persistUser(nextUser);
+      return { ok: true, plan: updated };
+    } catch (e) {
+      setError(e?.response?.data || e?.message || "Failed to update plan");
+      return { ok: false, error: e };
+    } finally {
+      setLoading(false);
+    }
+  }, [token, user, persistUser]);
+
   const value = useMemo(() => ({
     token,
     user,
@@ -136,7 +180,9 @@ export function AuthProvider({ children }) {
     login: doLogin,
     signup: doSignup,
     logout: doLogout,
-  }), [token, user, loading, error, doLogin, doSignup, doLogout]);
+    refreshProfile,
+    updatePlan: doUpdatePlan,
+  }), [token, user, loading, error, doLogin, doSignup, doLogout, refreshProfile, doUpdatePlan]);
 
   return (
     <AuthContext.Provider value={value}>

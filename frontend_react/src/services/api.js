@@ -36,8 +36,20 @@ export async function login(payload) {
   /**
    * Login and return TokenResponse.
    * payload: { email: string, password: string }
+   * The backend expects application/x-www-form-urlencoded; include both 'username' and 'email' aliases.
    */
-  const res = await api.post("/auth/login", payload);
+  const { email, password } = payload || {};
+  const body = new URLSearchParams();
+  // OAuth2PasswordRequestForm uses 'username'; OpenAPI indicates 'email' alias - send both for compatibility
+  if (email) {
+    body.append("username", email);
+    body.append("email", email);
+  }
+  if (password) body.append("password", password);
+
+  const res = await api.post("/auth/login", body, {
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+  });
   return res.data;
 }
 
@@ -66,6 +78,23 @@ export async function getTailoredContent() {
 }
 
 // PUBLIC_INTERFACE
+export async function getPlan() {
+  /** Retrieve current user's plan/package tier. Requires auth. */
+  const res = await api.get("/account/plan");
+  return res.data;
+}
+
+// PUBLIC_INTERFACE
+export async function updatePlan(package_tier) {
+  /**
+   * Update current user's plan/package tier. Requires auth.
+   * package_tier: 'free' | 'pro' | 'enterprise'
+   */
+  const res = await api.put("/account/plan", { package_tier });
+  return res.data;
+}
+
+// PUBLIC_INTERFACE
 export async function health() {
   /** Simple health check to verify backend connectivity. */
   const res = await api.get("/");
@@ -78,5 +107,7 @@ export default {
   signup,
   getDashboard,
   getTailoredContent,
+  getPlan,
+  updatePlan,
   health,
 };
