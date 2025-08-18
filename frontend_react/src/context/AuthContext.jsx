@@ -53,6 +53,10 @@ export function AuthProvider({ children }) {
   }, []);
 
   const persistToken = useCallback((newToken) => {
+    // Immediately update axios auth header to avoid a race where the first
+    // request after login would be sent without Authorization and cause 401.
+    api.setToken(newToken || null);
+
     setToken(newToken);
     if (newToken) {
       localStorage.setItem(TOKEN_KEY, newToken);

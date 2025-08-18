@@ -63,10 +63,12 @@ export async function login(payload) {
    * payload: { email: string, password: string }
    *
    * Send as application/x-www-form-urlencoded to match backend schema and avoid unnecessary preflight.
+   * Provide both 'email' and 'username' fields for compatibility with OAuth2PasswordRequestForm.
    */
   const form = new URLSearchParams();
-  // Backend accepts 'email' (alias of 'username') and 'password'
-  form.set("email", String(payload?.email || ""));
+  const email = String(payload?.email || "");
+  form.set("email", email);
+  form.set("username", email); // compatibility with OAuth2PasswordRequestForm
   form.set("password", String(payload?.password || ""));
   const res = await api.post("/auth/login", form, {
     headers: {
