@@ -32,5 +32,6 @@
   },
   "devDependencies": {
     "cross-env": "^7.0.3"
-  }
+  },
+  "proxy": "https://vscode-internal-38494-beta.beta01.cloud.kavia.ai:3001"
 }

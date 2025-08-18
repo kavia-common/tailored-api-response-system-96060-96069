@@ -2,19 +2,44 @@ import axios from "axios";
 
 /**
  * API service configured with backend base URL and JWT support.
- * Reads REACT_APP_BACKEND_URL from environment. If not set, falls back to provided backend URL.
+ * Reads REACT_APP_BACKEND_URL from environment. If not set, prefers CRA dev proxy in development,
+ * and finally falls back to the provided absolute backend URL.
  * Note: Avoid setting a global "Content-Type" header so simple requests can remain CORS simple.
  */
-const BASE_URL =
-  process.env.REACT_APP_BACKEND_URL ||
-  "https://vscode-internal-38494-beta.beta01.cloud.kavia.ai:3001";
+function resolveBaseUrl() {
+  const envUrl = (process.env.REACT_APP_BACKEND_URL || "").trim();
+  if (envUrl) {
+    // Normalize by removing trailing slash
+    return envUrl.replace(/\/$/, "");
+  }
+
+  // If running under CRA dev server on port 3000, leverage proxy by using relative URLs
+  if (typeof window !== "undefined") {
+    const isDev = process.env.NODE_ENV !== "production";
+    if (isDev && window.location && window.location.port === "3000") {
+      // Use empty baseURL so calls like "/auth/login" go to the dev server and get proxied
+      return "";
+    }
+  }
+
+  // Fallback: use absolute backend URL (for preview or production without proxy)
+  return "https://vscode-internal-38494-beta.beta01.cloud.kavia.ai:3001";
+}
+
+const BASE_URL = resolveBaseUrl();
 
 // PUBLIC_INTERFACE
-export const API_BASE_URL = BASE_URL; // Base URL used by API client. Configured via REACT_APP_BACKEND_URL.
+export const API_BASE_URL =
+  BASE_URL || (typeof window !== "undefined" ? window.location.origin : ""); // Exposed for display (curl example), not required for axios
 
-// Create axios instance with only baseURL; let axios infer per-request headers
+// Create axios instance with baseURL; let axios infer per-request headers
 const api = axios.create({
-  baseURL: BASE_URL,
+  baseURL: BASE_URL || undefined,
+  withCredentials: false, // ensure requests are not treated as credentialed (no cookies) to avoid strict CORS paths
+  headers: {
+    Accept: "application/json",
+  },
+  timeout: 15000,
 });
 
 // Current token value stored in module scope and mirrored to localStorage by AuthContext
