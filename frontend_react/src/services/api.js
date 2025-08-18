@@ -2,35 +2,30 @@ import axios from "axios";
 
 /**
  * API service configured with backend base URL and JWT support.
- * Reads REACT_APP_BACKEND_URL from environment. If not set, prefers CRA dev proxy in development,
- * and finally falls back to the provided absolute backend URL.
+ * Uses REACT_APP_BACKEND_URL exclusively as the base URL (no hardcoded URLs).
+ * If REACT_APP_BACKEND_URL is not set, a warning is logged and relative paths will be used.
  * Note: Avoid setting a global "Content-Type" header so simple requests can remain CORS simple.
  */
 function resolveBaseUrl() {
   const envUrl = (process.env.REACT_APP_BACKEND_URL || "").trim();
-  if (envUrl) {
-    // Normalize by removing trailing slash
-    return envUrl.replace(/\/$/, "");
+  if (!envUrl) {
+    // Warn clearly so environments missing .env can be corrected
+    // Keeping empty string allows axios to use relative URLs as a soft fallback
+    // but the recommended setup is to provide REACT_APP_BACKEND_URL.
+    // eslint-disable-next-line no-console
+    console.warn(
+      "REACT_APP_BACKEND_URL is not set. API calls will use relative URLs which may fail if not proxied."
+    );
+    return "";
   }
-
-  // If running under CRA dev server on port 3000, leverage proxy by using relative URLs
-  if (typeof window !== "undefined") {
-    const isDev = process.env.NODE_ENV !== "production";
-    if (isDev && window.location && window.location.port === "3000") {
-      // Use empty baseURL so calls like "/auth/login" go to the dev server and get proxied
-      return "";
-    }
-  }
-
-  // Fallback: use absolute backend URL (for preview or production without proxy)
-  return "https://vscode-internal-38494-beta.beta01.cloud.kavia.ai:3001";
+  // Normalize by removing trailing slash
+  return envUrl.replace(/\/$/, "");
 }
 
 const BASE_URL = resolveBaseUrl();
 
 // PUBLIC_INTERFACE
-export const API_BASE_URL =
-  BASE_URL || (typeof window !== "undefined" ? window.location.origin : ""); // Exposed for display (curl example), not required for axios
+export const API_BASE_URL = BASE_URL; // Exposed for display (curl example), not required for axios
 
 // Create axios instance with baseURL; let axios infer per-request headers
 const api = axios.create({
