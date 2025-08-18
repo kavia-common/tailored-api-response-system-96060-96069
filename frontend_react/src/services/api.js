@@ -4,7 +4,9 @@ import axios from "axios";
  * API service configured with backend base URL and JWT support.
  * Reads REACT_APP_BACKEND_URL from environment. If not set, will default to same-origin.
  */
-const BASE_URL = process.env.REACT_APP_BACKEND_URL || "";
+const BASE_URL = process.env.REACT_APP_BACKEND_URL || "https://vscode-internal-38494-beta.beta01.cloud.kavia.ai:3001";
+// PUBLIC_INTERFACE
+export const API_BASE_URL = BASE_URL; // Base URL used by API client. Configured via REACT_APP_BACKEND_URL.
 
 // Axios instance for consistent headers and base URL
 const api = axios.create({
